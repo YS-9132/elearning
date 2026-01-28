@@ -4,15 +4,36 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 import base64
 from datetime import datetime
-from config import SPREADSHEET_ID, SENDER_EMAIL
+import os
+import json
+
+# 設定（Secretsから取得、なければデフォルト値を使用）
+SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '1Cl0TlNamAjIC4JfTpDOWc5IRpUJx3UqYhyiGXIZh5Mc')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'nakano@mdsy.jp')
 
 st.set_page_config(page_title="E-Learning", layout="centered")
+
+# 認証情報を取得（環境変数Secrets or ローカルファイル）
+def get_credentials(scopes):
+    creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+    if creds_json:
+        # Streamlit CloudのSecretsから読み込む
+        creds_info = json.loads(creds_json)
+        return Credentials.from_service_account_info(creds_info, scopes=scopes)
+    else:
+        # ローカルPCでのテスト用（credentials.jsonファイルを探す）
+        try:
+            return Credentials.from_service_account_file('credentials.json', scopes=scopes)
+        except Exception:
+            st.error("認証情報が見つかりません。StreamlitのSecrets設定を確認してください。")
+            return None
 
 # Google Sheets 連携
 @st.cache_resource
 def get_spreadsheet():
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
+    creds = get_credentials(scope)
+    if not creds: return None
     client = gspread.authorize(creds)
     return client.open_by_key(SPREADSHEET_ID)
 
@@ -20,7 +41,8 @@ def get_spreadsheet():
 @st.cache_resource
 def get_gmail_service():
     scope = ['https://www.googleapis.com/auth/gmail.send']
-    creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
+    creds = get_credentials(scope)
+    if not creds: return None
     return build('gmail', 'v1', credentials=creds)
 
 # ユーザーマスター取得
