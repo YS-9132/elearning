@@ -112,16 +112,24 @@ def send_email(to_email, name, score, passed):
     msg['To'] = to_email
 
     try:
-        # Gmailのサーバーを使って直接送る設定です
+        # Gmailのサーバーを使って直接送る
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(SENDER_EMAIL, SMTP_PASSWORD)
+            
+            # --- 1通目：受験者本人へ送信 ---
             server.send_message(msg)
             
-            # 管理者にも送る
+            # --- 2通目：管理者への通知（別のメールとして作成） ---
             admin_email = get_admin_email()
-            if admin_email and admin_email != to_email:
-                msg['To'] = admin_email
-                server.send_message(msg)
+            if admin_email:
+                # 管理者用のメールを新しく作り直す（宛先上書きによる失敗を防ぐため）
+                admin_msg = MIMEText(body)
+                admin_msg['Subject'] = f"【管理者通知】{subject}"
+                admin_msg['From'] = SENDER_EMAIL
+                admin_msg['To'] = admin_email
+                
+                server.send_message(admin_msg)
+                
         return True
     except Exception as e:
         # エラーが出たら画面に表示されます
