@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 # 設定（Secretsから取得、なければデフォルト値を使用）
 SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '1Cl0TlNamAjIC4JfTpDOWc5IRpUJx3UqYhyiGXIZh5Mc')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'nakano@mdsy.jp')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
 
 st.set_page_config(page_title="E-Learning", layout="centered")
 
