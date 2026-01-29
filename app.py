@@ -78,14 +78,14 @@ def get_questions():
             })
     return questions
 
-# 管理者メール取得
-def get_admin_email():
+# 管理者メールをリストですべて取得
+def get_admin_emails():
     sh = get_spreadsheet()
     ws = sh.worksheet('管理者マスター')
     data = ws.get_all_values()
-    if len(data) > 1 and len(data[1]) > 0:
-        return data[1][0]
-    return None
+    # A列の2行目以降（A2, A3...）から空でないアドレスをすべて取得
+    emails = [row[0] for row in data[1:] if row and len(row) > 0 and row[0]]
+    return emails
 
 # 結果保存
 def save_result(name, email, score, passed):
@@ -119,10 +119,9 @@ def send_email(to_email, name, score, passed):
             # --- 1通目：受験者本人へ送信 ---
             server.send_message(msg)
             
-            # --- 2通目：管理者への通知（別のメールとして作成） ---
-            admin_email = get_admin_email()
-            if admin_email:
-                # 管理者用のメールを新しく作り直す（宛先上書きによる失敗を防ぐため）
+            # --- 2通目以降：管理者マスター全員へ通知 ---
+            admin_emails = get_admin_emails()
+            for admin_email in admin_emails:
                 admin_msg = MIMEText(body)
                 admin_msg['Subject'] = f"【管理者通知】{subject}"
                 admin_msg['From'] = SENDER_EMAIL
