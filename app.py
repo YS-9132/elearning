@@ -7,22 +7,25 @@ from datetime import datetime, timedelta, timezone # JST対応
 import os
 import json
 
-# 設定（Secretsから取得、なければデフォルト値を使用）
-SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '1Cl0TlNamAjIC4JfTpDOWc5IRpUJx3UqYhyiGXIZh5Mc')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'nakano@mdsy.jp')
-SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD') # ここでSecretsを読み込みます
+# --- 設定（Secretsから取得） ---
+# os.environ.get ではなく st.secrets を使います
+SPREADSHEET_ID = st.secrets.get('SPREADSHEET_ID', '1Cl0TlNamAjIC4JfTpDOWc5IRpUJx3UqYhyiGXIZh5Mc')
+SENDER_EMAIL = st.secrets.get('SENDER_EMAIL', 'nakano@mdsy.jp')
+SMTP_PASSWORD = st.secrets.get('SMTP_PASSWORD')
 
+# --- ここにその1行を入れます ---
 st.set_page_config(page_title="E-Learning", layout="centered")
 
-# 認証情報を取得（環境変数Secrets or ローカルファイル）
+# --- 認証情報を取得 ---
 def get_credentials(scopes):
-    creds_json = os.environ.get('GOOGLE_CREDENTIALS')
-    if creds_json:
-        # Streamlit CloudのSecretsから読み込む
-        creds_info = json.loads(creds_json)
+    # Streamlit CloudのSecretsから [GOOGLE_CREDENTIALS] セクションを取得
+    creds_info = st.secrets.get('GOOGLE_CREDENTIALS')
+    
+    if creds_info:
+        # すでに辞書形式になっているので json.loads は不要です
         return Credentials.from_service_account_info(creds_info, scopes=scopes)
     else:
-        # ローカルPCでのテスト用（credentials.jsonファイルを探す）
+        # ローカルPCでのテスト用
         try:
             return Credentials.from_service_account_file('credentials.json', scopes=scopes)
         except Exception:
