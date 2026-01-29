@@ -6,6 +6,7 @@ import base64
 from datetime import datetime
 import os
 import json
+from datetime import datetime, timedelta, timezone
 
 # 設定（Secretsから取得、なければデフォルト値を使用）
 SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '1Cl0TlNamAjIC4JfTpDOWc5IRpUJx3UqYhyiGXIZh5Mc')
@@ -87,7 +88,10 @@ def get_admin_email():
 def save_result(name, email, score, passed):
     sh = get_spreadsheet()
     ws = sh.worksheet('受験結果')
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # --- ここから日本時間（JST）にする処理 ---
+    JST = timezone(timedelta(hours=+9), 'JST')
+    ts = datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')
+    # ---------------------------------------
     ws.append_row([ts, name, email, score, '合格' if passed else '不合格', ''])
 
 # Gmail でメール送信
