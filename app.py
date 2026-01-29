@@ -1,17 +1,16 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-import base64
-from datetime import datetime
+import smtplib  # 追加
+from email.mime.text import MIMEText  # 追加
+from datetime import datetime, timedelta, timezone # JST対応
 import os
 import json
-from datetime import datetime, timedelta, timezone
 
 # 設定（Secretsから取得、なければデフォルト値を使用）
 SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '1Cl0TlNamAjIC4JfTpDOWc5IRpUJx3UqYhyiGXIZh5Mc')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'nakano@mdsy.jp')
-SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD') # ここでSecretsを読み込みます
 
 st.set_page_config(page_title="E-Learning", layout="centered")
 
@@ -95,34 +94,34 @@ def save_result(name, email, score, passed):
     # ---------------------------------------
     ws.append_row([ts, name, email, score, '合格' if passed else '不合格', ''])
 
-# Gmail でメール送信
+
 def send_email(to_email, name, score, passed):
+    if not SMTP_PASSWORD:
+        st.error("SMTP_PASSWORD が設定されていません。")
+        return False
+    
+    subject = '[E-Learning] 採点結果'
+    body = f"{name} さん\n\nランサムウェア対策受験結果\n\n得点: {score}/5\n判定: {'合格' if passed else '不合格'}\n\n{'おめでとうございます！全問正解です。' if passed else f'あと{5-score}問で合格です。'}"
+    
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = to_email
+
     try:
-        service = get_gmail_service()
-        admin_email = get_admin_email()
-        
-        subject = '[E-Learning] 採点結果'
-        body = f"{name} さん\n\nランサムウェア対策受験結果\n\n得点: {score}/5\n判定: {'合格' if passed else '不合格'}\n\n{'おめでとうございます！全問正解です。' if passed else f'あと{5-score}問で合格です。'}"
-        
-        # ユーザーへメール送信
-        message_user = {
-            'raw': base64.urlsafe_b64encode(
-                f"From: {SENDER_EMAIL}\nTo: {to_email}\nSubject: {subject}\n\n{body}".encode()
-            ).decode()
-        }
-        service.users().messages().send(userId='me', body=message_user).execute()
-        
-        # 管理者へメール送信
-        if admin_email:
-            message_admin = {
-                'raw': base64.urlsafe_b64encode(
-                    f"From: {SENDER_EMAIL}\nTo: {admin_email}\nSubject: {subject}\n\n{body}".encode()
-                ).decode()
-            }
-            service.users().messages().send(userId='me', body=message_admin).execute()
-        
+        # Gmailのサーバーを使って直接送る設定です
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(SENDER_EMAIL, SMTP_PASSWORD)
+            server.send_message(msg)
+            
+            # 管理者にも送る
+            admin_email = get_admin_email()
+            if admin_email and admin_email != to_email:
+                msg['To'] = admin_email
+                server.send_message(msg)
         return True
     except Exception as e:
+        # エラーが出たら画面に表示されます
         st.error(f"メール送信エラー: {str(e)}")
         return False
 
