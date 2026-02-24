@@ -4,6 +4,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 import base64
+import json
 from datetime import datetime
 from config import SPREADSHEET_ID, SENDER_EMAIL
 
@@ -16,14 +17,16 @@ def get_spreadsheet():
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
-    creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
+    creds_dict = json.loads(st.secrets["gcp_service_account"])
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     client = gspread.authorize(creds)
     return client.open_by_key(SPREADSHEET_ID)
 
 @st.cache_resource
 def get_gmail_service():
     scope = ['https://www.googleapis.com/auth/gmail.send']
-    creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
+    creds_dict = json.loads(st.secrets["gcp_service_account"])
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     return build('gmail', 'v1', credentials=creds)
 
 # ===================== データ取得 =====================
@@ -31,7 +34,7 @@ def get_gmail_service():
 def get_users():
     """
     ユーザーマスター取得
-    戻り値: {氏名: {email, dept, role}}
+    戻り値: {氏名: {email, dept_str, dept_list, role}}
 
     【権限ルール】
     - 権限が空欄 → 一般職（受験のみ、通知対象外）
@@ -49,14 +52,13 @@ def get_users():
     for i in range(1, len(data)):
         row = data[i]
         if len(row) > 0 and row[0]:
-            # 部署をカンマ区切りでリスト化
-            dept_str = row[2].strip() if len(row) > 2 else ''
+            dept_str  = row[2].strip() if len(row) > 2 else ''
             dept_list = [d.strip() for d in dept_str.split(',') if d.strip()]
             users[row[0]] = {
                 'email':     row[1].strip() if len(row) > 1 else '',
-                'dept_str':  dept_str,            # 元の文字列（表示用）
-                'dept_list': dept_list,           # リスト（ロジック用）
-                'role':      row[3].strip() if len(row) > 3 else ''  # 空欄=一般職
+                'dept_str':  dept_str,
+                'dept_list': dept_list,
+                'role':      row[3].strip() if len(row) > 3 else ''
             }
     return users
 
@@ -86,14 +88,8 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
     【プライバシールール】
     - 受験者の権限が空欄（一般職）→ 通知マスターに基づき通知
     - 受験者の権限が空欄以外（管理職等）→ 本人のみ通知（他者には送らない）
-
-    【通知マスター参照】
-    - 受験者の部署行でONになっている権限を確認
-    - ユーザーマスターから該当権限・部署の人を抽出
-    - 部署が「全部署」またはカンマ区切りで一致するものを対象とする
     """
-
-    # 管理職・役員等が受験した場合は本人のみ（プライバシー保護）
+    # 管理職等が受験した場合は本人のみ（プライバシー保護）
     if exam_role:
         return []
 
@@ -105,10 +101,10 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
         return []
 
     # ヘッダーから権限名を取得（B列以降）
-    header    = notify_data[0]  # 例：['部署', '部長', '次長', '課長', 'システム管理者']
-    role_cols = header[1:]      # 例：['部長', '次長', '課長', 'システム管理者']
+    header    = notify_data[0]
+    role_cols = header[1:]
 
-    # 受験者の部署に対してONになっている権限を収集
+    # 受験者の部署でONになっている権限を収集
     active_roles = set()
     for row in notify_data[1:]:
         if len(row) > 0 and row[0] in (exam_dept, '全部署'):
@@ -121,7 +117,6 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
         return []
 
     # ユーザーマスターから通知対象を抽出
-    # 条件：権限が active_roles に含まれ、部署が一致 or 全部署
     emails = []
     for name, info in users.items():
         role      = info['role']
@@ -130,15 +125,14 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
 
         if role not in active_roles:
             continue
-        if mail == exam_email:  # 受験者本人は除外（本人メールは別途送信）
+        if mail == exam_email:
             continue
 
-        # 部署チェック：全部署 or 受験者の部署と一致
         if '全部署' in dept_list or exam_dept in dept_list:
             if mail:
                 emails.append(mail)
 
-    return list(set(emails))  # 重複排除
+    return list(set(emails))
 
 def save_result(name: str, email: str, dept: str, role: str, score: int, passed: bool):
     """受験結果をスプレッドシートに保存"""
@@ -149,19 +143,11 @@ def save_result(name: str, email: str, dept: str, role: str, score: int, passed:
 
 def send_email(to_email: str, name: str, dept: str, role: str,
                score: int, passed: bool, total: int, users: dict):
-    """
-    受験者本人＋通知対象者へメール送信
-
-    【送信ルール】
-    - 受験者本人：常に送信
-    - 管理職等（権限あり）が受験した場合：本人のみ
-    - 一般職（権限空欄）が受験した場合：通知マスターに基づき送信
-    """
+    """受験者本人＋通知対象者へメール送信"""
     try:
         service = get_gmail_service()
         subject = '[E-Learning] 採点結果'
 
-        # 受験者本人へのメール
         user_body = (
             f"{name} さん（{dept}）\n\n"
             f"ランサムウェア対策 受験結果\n\n"
@@ -170,7 +156,6 @@ def send_email(to_email: str, name: str, dept: str, role: str,
             f"{'おめでとうございます！全問正解です。' if passed else f'あと {total - score} 問で合格です。'}"
         )
 
-        # 通知担当者へのメール
         admin_body = (
             f"【受験完了通知】\n\n"
             f"氏名: {name}\n"
@@ -195,7 +180,7 @@ def send_email(to_email: str, name: str, dept: str, role: str,
         # 受験者本人へ送信
         _send(to_email, user_body)
 
-        # 通知対象者へ送信（一般職のみ。管理職等は本人のみのため空リストが返る）
+        # 通知対象者へ送信
         notify_emails = get_notify_targets(dept, role, to_email, users)
         for addr in notify_emails:
             try:
@@ -231,7 +216,7 @@ def home_page():
     st.markdown('---')
 
     users = get_users()
-    user_list = sorted(list(users.keys()))  # 権限に関わらず全員表示
+    user_list = sorted(list(users.keys()))
 
     selected_user = st.selectbox('氏名を選択してください', user_list)
 
