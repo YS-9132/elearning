@@ -17,22 +17,16 @@ def get_spreadsheet():
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
-    # シークレットがTOML形式（[gcp_service_account]）の場合
-    creds = Credentials.from_service_account_info(
-        dict(st.secrets["gcp_service_account"]),
-        scopes=scope
-    )
+    creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     client = gspread.authorize(creds)
     return client.open_by_key(SPREADSHEET_ID)
 
 @st.cache_resource
 def get_gmail_service():
     scope = ['https://www.googleapis.com/auth/gmail.send']
-    # シークレットがTOML形式（[gcp_service_account]）の場合
-    creds = Credentials.from_service_account_info(
-        dict(st.secrets["gcp_service_account"]),
-        scopes=scope
-    )
+    creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     return build('gmail', 'v1', credentials=creds)
 
 # ===================== データ取得 =====================
