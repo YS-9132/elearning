@@ -139,11 +139,22 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
     return list(set(emails))
 
 def save_result(name: str, email: str, dept: str, role: str, score: int, passed: bool):
-    """受験結果をスプレッドシートに保存"""
+    """受験結果をスプレッドシートに保存（列の並びを修正）"""
     sh = get_spreadsheet()
     ws = sh.worksheet('受験結果')
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    ws.append_row([ts, name, email, dept, role if role else '一般職', score, '合格' if passed else '不合格', ''])
+    
+    # 画像の並びに合わせて調整：受験日時, 氏名, メール, 部署, 役職, 得点, 合否
+    row_data = [
+        ts, 
+        name, 
+        email, 
+        dept, 
+        role if role else '一般職', 
+        score, 
+        '合格' if passed else '不合格'
+    ]
+    ws.append_row(row_data)
 
 def send_email(to_email: str, name: str, dept: str, role: str,
                score: int, passed: bool, total: int, users: dict):
