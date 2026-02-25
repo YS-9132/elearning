@@ -94,8 +94,8 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
     - 受験者の権限が空欄以外（管理職等）→ 本人のみ通知（他者には送らない）
     """
     # 管理職等が受験した場合は本人のみ（プライバシー保護）
-    if exam_role:
-        return []
+    #if exam_role:
+        #return []
 
     sh = get_spreadsheet()
     notify_ws   = sh.worksheet('通知マスター')
