@@ -145,8 +145,6 @@ def save_result(name: str, email: str, dept: str, role: str, score: int, passed:
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     ws.append_row([ts, name, email, dept, role if role else '一般職', score, '合格' if passed else '不合格', ''])
 
-# send_email関数の中、_sendを呼び出す直前に追加
-st.write(f"デバッグ通知先リスト: {notify_emails}")
 def send_email(to_email: str, name: str, dept: str, role: str,
                score: int, passed: bool, total: int, users: dict):
     """受験者本人＋通知対象者へメール送信"""
@@ -154,6 +152,7 @@ def send_email(to_email: str, name: str, dept: str, role: str,
         service = get_gmail_service()
         subject = '[E-Learning] 採点結果'
 
+        # --- ① 本文の作成 ---
         user_body = (
             f"{name} さん（{dept}）\n\n"
             f"ランサムウェア対策 受験結果\n\n"
@@ -171,6 +170,39 @@ def send_email(to_email: str, name: str, dept: str, role: str,
             f"受験日時: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         )
 
+        # --- ② 送信用の関数定義 ---
+        def _send(to_addr, body):
+            raw = base64.urlsafe_b64encode(
+                (
+                    f"From: {SENDER_EMAIL}\n"
+                    f"To: {to_addr}\n"
+                    f"Subject: {subject}\n"
+                    f"Content-Type: text/plain; charset=utf-8\n\n"
+                    f"{body}"
+                ).encode('utf-8')
+            ).decode()
+            service.users().messages().send(userId='me', body={'raw': raw}).execute()
+
+        # --- ③ 実際の処理（ここからが重要！） ---
+
+        # 1. まず本人に送る
+        _send(to_email, user_body)
+
+        # 2. 次に「通知リスト」を作成する（この命令が st.write より先！）
+        notify_emails = get_notify_targets(dept, role, to_email, users)
+
+        # 3. 【デバッグ】作成されたリストを画面に出す
+        st.write(f"デバッグ通知先リスト: {notify_emails}")
+        
+        # 4. リストに載っている管理者に送る
+        for addr in notify_emails:
+            try:
+                _send(addr, admin_body)
+            except Exception:
+                pass
+
+        return True
+        
         def _send(to_addr, body):
             raw = base64.urlsafe_b64encode(
                 (
