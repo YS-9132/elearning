@@ -147,7 +147,7 @@ def save_result(name: str, email: str, dept: str, role: str, score: int, passed:
 
 def send_email(to_email: str, name: str, dept: str, role: str,
                score: int, passed: bool, total: int, users: dict):
-    """受験者本人＋通知対象者へメール送信"""
+    """受験er本人＋通知対象者へメール送信"""
     try:
         service = get_gmail_service()
         subject = '[E-Learning] 採点結果'
@@ -183,12 +183,12 @@ def send_email(to_email: str, name: str, dept: str, role: str,
             ).decode()
             service.users().messages().send(userId='me', body={'raw': raw}).execute()
 
-        # --- ③ 実際の処理（ここからが重要！） ---
+        # --- ③ 実際の処理 ---
 
         # 1. まず本人に送る
         _send(to_email, user_body)
 
-        # 2. 次に「通知リスト」を作成する（この命令が st.write より先！）
+        # 2. 次に「通知リスト」を作成する
         notify_emails = get_notify_targets(dept, role, to_email, users)
 
         # 3. 【デバッグ】作成されたリストを画面に出す
@@ -201,37 +201,11 @@ def send_email(to_email: str, name: str, dept: str, role: str,
             except Exception:
                 pass
 
-        return True
-        
-        def _send(to_addr, body):
-            raw = base64.urlsafe_b64encode(
-                (
-                    f"From: {SENDER_EMAIL}\n"
-                    f"To: {to_addr}\n"
-                    f"Subject: {subject}\n"
-                    f"Content-Type: text/plain; charset=utf-8\n\n"
-                    f"{body}"
-                ).encode('utf-8')
-            ).decode()
-            service.users().messages().send(userId='me', body={'raw': raw}).execute()
-
-        # 受験者本人へ送信
-        _send(to_email, user_body)
-
-        # 通知対象者へ送信
-        notify_emails = get_notify_targets(dept, role, to_email, users)
-        for addr in notify_emails:
-            try:
-                _send(addr, admin_body)
-            except Exception:
-                pass
-
-        return True
+        return True  # ここで関数は終わりです。これより下は不要です。
 
     except Exception as e:
         st.error(f"メール送信エラー: {str(e)}")
         return False
-
 # ===================== ページ状態初期化 =====================
 for key, default in [
     ('page', 'home'),
