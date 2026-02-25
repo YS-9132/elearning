@@ -343,6 +343,10 @@ def exam_page():
 def result_page():
     st.title('🎓 採点結果')
 
+    # 【追加】この位置にデバッグ表示を入れる
+    if 'debug_list' in st.session_state:
+        st.warning(f"🔍 デバッグ通知先リスト: {st.session_state.debug_list}")
+
     total = st.session_state.get('total', 5)
 
     col1, col2 = st.columns([1, 1])
