@@ -196,23 +196,22 @@ def send_email(to_email: str, name: str, dept: str, role: str,
 
         # --- ③ 実際の処理 ---
 
-        # 1. まず本人に送る
+        # 1. 本人に送る
         _send(to_email, user_body)
 
-        # 2. 次に「通知リスト」を作成する
+        # 2. 通知リストを作成
         notify_emails = get_notify_targets(dept, role, to_email, users)
 
-        # 3. 【デバッグ】作成されたリストを画面に出す
-        st.write(f"デバッグ通知先リスト: {notify_emails}")
-        
-        # 4. リストに載っている管理者に送る
+        # 3. 【修正】 st.write は削除し、リストをそのまま保持
+
+        # 4. 管理者に送る
         for addr in notify_emails:
             try:
                 _send(addr, admin_body)
             except Exception:
                 pass
 
-        return True  # ここで関数は終わりです。これより下は不要です。
+        return notify_emails  # 【重要】True の代わりにリストを返すように変更
 
     except Exception as e:
         st.error(f"メール送信エラー: {str(e)}")
@@ -324,13 +323,15 @@ def exam_page():
                 score, passed
             )
 
-            send_email(
+            # 【修正箇所】戻り値（リスト）を受け取って保存する
+            sent_list = send_email(
                 st.session_state.user_email,
                 st.session_state.user_name,
                 st.session_state.user_dept,
                 st.session_state.user_role,
                 score, passed, total, users
             )
+            st.session_state.debug_list = sent_list # ここで保存！
 
             st.session_state.score  = score
             st.session_state.passed = passed
