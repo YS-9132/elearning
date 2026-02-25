@@ -145,6 +145,8 @@ def save_result(name: str, email: str, dept: str, role: str, score: int, passed:
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     ws.append_row([ts, name, email, dept, role if role else '一般職', score, '合格' if passed else '不合格', ''])
 
+# send_email関数の中、_sendを呼び出す直前に追加
+st.write(f"デバッグ通知先リスト: {notify_emails}")
 def send_email(to_email: str, name: str, dept: str, role: str,
                score: int, passed: bool, total: int, users: dict):
     """受験者本人＋通知対象者へメール送信"""
