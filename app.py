@@ -172,16 +172,18 @@ def send_email(to_email, name, dept, role, score, passed, total, users):
         )
 
         def _send(to_addr, body):
+            import json
             res = requests.post(
                 GAS_URL,
-                json={
+                data=json.dumps({
                     'to': to_addr,
                     'subject': subject,
                     'body': body
-                },
-                allow_redirects=True  # ← これを追加
+                }),
+                headers={'Content-Type': 'application/json'},
+                allow_redirects=True
             )
-            return res.text  # ← res.json() から res.text に変更
+            return res.text
 
         # 本人に送る
         _send(to_email, user_body)
