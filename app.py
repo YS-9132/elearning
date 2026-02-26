@@ -148,6 +148,7 @@ def save_result(name: str, email: str, dept: str, role: str, score: int, passed:
     ws.append_row(row_data)
 
 def send_email(to_email, name, dept, role, score, passed, total, users):
+    GAS_URL = st.secrets["GAS_URL"]  # ← ここで取得
     try:
         import requests
         from config import GAS_URL
