@@ -199,7 +199,8 @@ def send_email(to_email: str, name: str, dept: str, role: str,
             _send(to_email, user_body)
             st.success(f"✅ 本人送信成功: {to_email}")
         except Exception as e:
-            st.error(f"❌ 本人送信失敗: {e}")  # ← ここにエラー原因が出ます
+            # st.error ではなく session_state に保存する
+            st.session_state.debug_error = str(e)  # ← これに変更
             return False
 
         notify_emails = get_notify_targets(dept, role, to_email, users)
@@ -345,9 +346,12 @@ def exam_page():
 def result_page():
     st.title('🎓 採点結果')
 
-    # 【追加】この位置にデバッグ表示を入れる
     if 'debug_list' in st.session_state:
         st.warning(f"🔍 デバッグ通知先リスト: {st.session_state.debug_list}")
+
+    # ★ これを追加
+    if 'debug_error' in st.session_state and st.session_state.debug_error:
+        st.error(f"❌ メール送信エラー詳細: {st.session_state.debug_error}")
 
     total = st.session_state.get('total', 5)
 
