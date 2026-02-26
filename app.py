@@ -183,6 +183,7 @@ def send_email(to_email, name, dept, role, score, passed, total, users):
                 headers={'Content-Type': 'application/json'},
                 allow_redirects=True
             )
+            st.session_state.debug_error = f"status:{res.status_code} / {res.text[:200]}"
             return res.text
 
         # 本人に送る
