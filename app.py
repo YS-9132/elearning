@@ -18,11 +18,18 @@ def get_spreadsheet():
     ]
     conf = st.secrets["GOOGLE_CREDENTIALS"]
     
-    # 文字列の場合はJSONに変換
     if isinstance(conf, str):
+        # 前後の余分な文字を除去してからパース
+        conf = conf.strip()
+        if conf.startswith('"') or conf.startswith("'"):
+            conf = conf[1:-1]
         conf = json.loads(conf)
     else:
         conf = dict(conf)
+
+    # private_keyの改行コードを修正
+    if "private_key" in conf:
+        conf["private_key"] = conf["private_key"].replace("\\n", "\n")
 
     creds = Credentials.from_service_account_info(conf, scopes=scope)
     client = gspread.authorize(creds)
