@@ -2,7 +2,6 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-import base64
 import json
 import requests
 from datetime import datetime
@@ -17,10 +16,15 @@ def get_spreadsheet():
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
-    creds = Credentials.from_service_account_info(
-        dict(st.secrets["GOOGLE_CREDENTIALS"]),
-        scopes=scope
-    )
+    conf = st.secrets["GOOGLE_CREDENTIALS"]
+    
+    # 文字列の場合はJSONに変換
+    if isinstance(conf, str):
+        conf = json.loads(conf)
+    else:
+        conf = dict(conf)
+
+    creds = Credentials.from_service_account_info(conf, scopes=scope)
     client = gspread.authorize(creds)
     return client.open_by_key(SPREADSHEET_ID)
 
