@@ -14,13 +14,18 @@ st.set_page_config(page_title="E-Learning", layout="centered")
 def get_spreadsheet():
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
     
-    # Secretsから取得
+    # SecretsからGOOGLE_CREDENTIALSを取得
     conf = st.secrets["GOOGLE_CREDENTIALS"]
     
-    # もし「文字列」として読み込まれていたら、辞書(JSON)に変換する処理を追加
+    # もし「文字列」として読み込まれていたら、辞書(JSON)に変換する
     if isinstance(conf, str):
         import json
-        conf = json.loads(conf)
+        # strict=False を入れることで、制御文字などの読み込みエラーを防ぎます
+        conf = json.loads(conf, strict=False)
+        
+    # 【重要】秘密鍵内の改行記号（\n）をシステムが認識できる形式に変換します
+    if "private_key" in conf:
+        conf["private_key"] = conf["private_key"].replace("\\n", "\n")
         
     creds = Credentials.from_service_account_info(conf, scopes=scope)
     client = gspread.authorize(creds)
