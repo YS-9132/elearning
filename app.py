@@ -209,13 +209,14 @@ def send_email(to_email: str, name: str, dept: str, role: str,
         for addr in notify_emails:
             try:
                 _send(addr, admin_body)
-            except Exception:
-                pass
+                st.success(f"✅ 管理者送信成功: {addr}")
+            except Exception as e:
+                st.error(f"❌ 管理者送信失敗 {addr}: {e}")
 
-        return notify_emails  # 【重要】True の代わりにリストを返すように変更
+        return notify_emails
 
     except Exception as e:
-        st.error(f"メール送信エラー: {str(e)}")
+        st.error(f"❌ 全体エラー: {e}")  # ← サービスアカウント取得失敗もここに出る
         return False
 # ===================== ページ状態初期化 =====================
 for key, default in [
