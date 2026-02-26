@@ -12,9 +12,26 @@ st.set_page_config(page_title="E-Learning", layout="centered")
 # ===================== Google連携 =====================
 @st.cache_resource
 def get_spreadsheet():
-    scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    creds = Credentials.from_service_account_info(dict(st.secrets["GOOGLE_CREDENTIALS"]), scopes=scope)
-    return gspread.authorize(creds).open_by_key(SPREADSHEET_ID)
+    scope = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ]
+    
+    # --- ここから修正 ---
+    conf = st.secrets["GOOGLE_CREDENTIALS"]
+    
+    # Secretsが文字列(str)で保存されている場合、辞書形式に変換する
+    if isinstance(conf, str):
+        import json
+        conf = json.loads(conf)
+    
+    creds = Credentials.from_service_account_info(
+        conf,
+        scopes=scope
+    )
+    
+    client = gspread.authorize(creds)
+    return client.open_by_key(SPREADSHEET_ID)
 
 # ===================== データ取得 =====================
 def get_users():
