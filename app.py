@@ -24,15 +24,6 @@ def get_spreadsheet():
     client = gspread.authorize(creds)
     return client.open_by_key(SPREADSHEET_ID)
 
-@st.cache_resource
-def get_gmail_service():
-    scope = ['https://www.googleapis.com/auth/gmail.send']
-    creds = Credentials.from_service_account_info(
-        dict(st.secrets["GOOGLE_CREDENTIALS"]),
-        scopes=scope
-    )
-    return build('gmail', 'v1', credentials=creds)
-
 # ===================== データ取得 =====================
 
 def get_users():
@@ -156,14 +147,13 @@ def save_result(name: str, email: str, dept: str, role: str, score: int, passed:
     ]
     ws.append_row(row_data)
 
-def send_email(to_email: str, name: str, dept: str, role: str,
-               score: int, passed: bool, total: int, users: dict):
-    """受験er本人＋通知対象者へメール送信"""
+def send_email(to_email, name, dept, role, score, passed, total, users):
     try:
-        service = get_gmail_service()
+        import requests
+        from config import GAS_URL
+
         subject = '[E-Learning] 採点結果'
 
-        # --- ① 本文の作成 ---
         user_body = (
             f"{name} さん（{dept}）\n\n"
             f"ランサムウェア対策 受験結果\n\n"
@@ -180,6 +170,31 @@ def send_email(to_email: str, name: str, dept: str, role: str,
             f"判定: {'合格' if passed else '不合格'}\n"
             f"受験日時: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         )
+
+        def _send(to_addr, body):
+            res = requests.post(GAS_URL, json={
+                'to': to_addr,
+                'subject': subject,
+                'body': body
+            })
+            return res.json()
+
+        # 本人に送る
+        _send(to_email, user_body)
+
+        # 通知先に送る
+        notify_emails = get_notify_targets(dept, role, to_email, users)
+        for addr in notify_emails:
+            try:
+                _send(addr, admin_body)
+            except Exception:
+                pass
+
+        return notify_emails
+
+    except Exception as e:
+        st.session_state.debug_error = str(e)
+        return False
 
         # --- ② 送信用の関数定義 ---
         def _send(to_addr, body):
