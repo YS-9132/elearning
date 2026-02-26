@@ -173,17 +173,21 @@ def send_email(to_email, name, dept, role, score, passed, total, users):
 
         def _send(to_addr, body):
             import json
-            res = requests.post(
-                GAS_URL,
-                data=json.dumps({
-                    'to': to_addr,
-                    'subject': subject,
-                    'body': body
-                }),
-                headers={'Content-Type': 'application/json'},
-                allow_redirects=True
-            )
-            st.session_state.debug_error = f"status:{res.status_code} / {res.text[:200]}"
+            try:
+                res = requests.post(
+                    GAS_URL,
+                    data=json.dumps({
+                        'to': to_addr,
+                        'subject': subject,
+                        'body': body
+                    }),
+                    headers={'Content-Type': 'application/json'},
+                    allow_redirects=True,
+                    timeout=10
+                )
+                st.session_state.debug_error = f"HTTP:{res.status_code} / {res.text[:300]}"
+            except Exception as e:
+                st.session_state.debug_error = f"接続エラー: {str(e)}"
             return res.text
 
         # 本人に送る
