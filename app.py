@@ -4,7 +4,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 import requests
 from datetime import datetime
-from config import SPREADSHEET_ID, GAS_URL
+# configから必要な3つを確実に読み込むように修正
+from config import SPREADSHEET_ID, SENDER_EMAIL, GAS_URL
 
 st.set_page_config(page_title="E-Learning", layout="centered")
 
@@ -59,7 +60,7 @@ def get_notify_targets(exam_dept, exam_email, users):
 
 # ===================== 保存・送信 =====================
 def save_result(name, email, dept, role, score, passed):
-    """スプレッドシート A:日時, B:氏名, C:メール, D:得点, E:合否 の順に保存"""
+    """スプレッドシートの列を A:日時, B:氏名, C:メール, D:得点, E:合否 に固定"""
     ws = get_spreadsheet().worksheet('受験結果')
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     row_data = [ts, name, email, score, '合格' if passed else '不合格', dept, role]
@@ -70,7 +71,6 @@ def send_email(to_email, name, dept, score, passed, total, users):
         subject = '[E-Learning] 採点結果'
         body = f"{name}様\n得点: {score}/{total}\n判定: {'合格' if passed else '不合格'}"
         def _s(addr, b): requests.post(GAS_URL, json={'to': addr, 'subject': subject, 'body': b}, allow_redirects=True)
-        
         _s(to_email, body)
         targets = get_notify_targets(dept, to_email, users)
         for t in targets: 
@@ -96,7 +96,7 @@ def exam_page():
     qs = get_questions()
     for i, q in enumerate(qs):
         st.write(f"### Q{i+1}: {q['question']}")
-        st.session_state.ans[i] = st.radio(f"選択肢", ['A','B','C','D','E'], key=f"q{i}", index=None)
+        st.session_state.ans[i] = st.radio(f"回答選択{i}", ['A','B','C','D','E'], key=f"q{i}", index=None)
         for j, opt in enumerate(q['options']): 
             if opt: st.write(f"{chr(65+j)}. {opt}")
         st.write("---")
