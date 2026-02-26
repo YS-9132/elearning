@@ -6,23 +6,23 @@ from config import SPREADSHEET_ID
 
 st.set_page_config(page_title="E-Learning", layout="centered")
 
-# ===================== Google連携 (エラー回避強化版) =====================
+# ===================== Google連携 (最終補正版) =====================
 @st.cache_resource
 def get_spreadsheet():
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    
-    # Secretsから取得
     conf = st.secrets["GOOGLE_CREDENTIALS"]
     
-    # もし「文字列」として読み込まれていたら、辞書に変換
     if isinstance(conf, str):
+        # 余計な前後の空白や引用符を徹底的に排除
+        conf = conf.strip().strip('"').strip("'")
         conf = json.loads(conf, strict=False)
     
-    # 【最重要】秘密鍵の形式をGoogleが読み込める形に強制変換
     if "private_key" in conf:
-        # 1. すでにある改行を統一
-        p_key = conf["private_key"].replace("\\n", "\n")
-        # 2. 前後の不要な空白やクォーテーションを除去
+        # 鍵の中身を掃除
+        p_key = conf["private_key"]
+        # 改行コードの変換
+        p_key = p_key.replace("\\n", "\n")
+        # 万が一、鍵自体が引用符で囲まれてしまっている場合の除去
         p_key = p_key.strip().strip('"').strip("'")
         conf["private_key"] = p_key
         
@@ -34,11 +34,11 @@ def get_users():
     try:
         sh = get_spreadsheet()
         data = sh.worksheet('ユーザーマスター').get_all_values()
-        # A列:氏名, C列:部署 を取得 (1行目はヘッダーなので飛ばす)
-        users = {row[0]: row[2] for row in data[1:] if len(row) > 2 and row[0]}
-        return users
+        # A列:氏名, C列:部署 を取得
+        return {row[0]: row[2] for row in data[1:] if len(row) > 2 and row[0]}
     except Exception as e:
-        st.error(f"データの読み込みに失敗しました。秘密鍵の設定を確認してください。")
+        # エラー内容をデバッグ用に表示
+        st.error(f"詳細エラー: {e}")
         return {}
 
 # ===================== 画面表示 =====================
