@@ -194,15 +194,16 @@ def send_email(to_email: str, name: str, dept: str, role: str,
             ).decode()
             service.users().messages().send(userId='me', body={'raw': raw}).execute()
 
-        # --- ③ 実際の処理 ---
+        # ★ 本人送信（エラー詳細を表示）
+        try:
+            _send(to_email, user_body)
+            st.success(f"✅ 本人送信成功: {to_email}")
+        except Exception as e:
+            st.error(f"❌ 本人送信失敗: {e}")  # ← ここにエラー原因が出ます
+            return False
 
-        # 1. 本人に送る
-        _send(to_email, user_body)
-
-        # 2. 通知リストを作成
         notify_emails = get_notify_targets(dept, role, to_email, users)
-
-        # 3. 【修正】 st.write は削除し、リストをそのまま保持
+        st.info(f"📋 通知先: {notify_emails}")
 
         # 4. 管理者に送る
         for addr in notify_emails:
