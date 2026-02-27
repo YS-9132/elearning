@@ -74,6 +74,17 @@ def get_questions():
     return questions
 
 def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: dict) -> list:
+    """
+    通知先メールアドレスを返す。
+
+    【追加ルール】
+    - 受験者の権限が「部長」「次長」の場合 → 本人のみ通知（他者には送らない）
+    - 受験者の権限がそれ以外の場合 → 通知マスターに基づき通知
+    """
+    # ① 部長・次長が受験した場合は、他者への通知リストを空にする（本人のみ受信）
+    if exam_role in ['部長', '次長']:
+        return []
+
     sh = get_spreadsheet()
     notify_ws   = sh.worksheet('通知マスター')
     notify_data = notify_ws.get_all_values()
@@ -81,11 +92,14 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
     if len(notify_data) < 2:
         return []
 
+    # ヘッダーから権限名を取得（B列以降）
     header    = notify_data[0]
     role_cols = header[1:]
 
+    # 受験者の部署でONになっている権限を収集
     active_roles = set()
     for row in notify_data[1:]:
+        # 受験者の部署、または「全部署」行を参照
         if len(row) > 0 and row[0] in (exam_dept, '全部署'):
             for idx, role_name in enumerate(role_cols):
                 col = idx + 1
@@ -95,17 +109,21 @@ def get_notify_targets(exam_dept: str, exam_role: str, exam_email: str, users: d
     if not active_roles:
         return []
 
+    # ユーザーマスターから通知対象を抽出
     emails = []
     for name, info in users.items():
         role      = info['role']
         dept_list = info['dept_list']
         mail      = info['email']
 
+        # 通知マスターでONになっている役職かチェック
         if role not in active_roles:
             continue
+        # 受験者本人は除外（二重送信防止）
         if mail == exam_email:
             continue
 
+        # 部署が一致するか「全部署」設定の人ならリストに追加
         if '全部署' in dept_list or exam_dept in dept_list:
             if mail:
                 emails.append(mail)
